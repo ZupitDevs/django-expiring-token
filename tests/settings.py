@@ -34,3 +34,9 @@ DATABASES = {
 ROOT_URLCONF = 'tests.urls'
 
 USE_TZ = True
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'drf_expiring_token.authentication.ExpiringTokenAuthentication',
+    ),
+}

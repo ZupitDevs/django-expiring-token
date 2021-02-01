@@ -100,3 +100,40 @@ class ExpiringTokenAuthenticationTestCase(TestCase):
 
     def create_datetime(self, year, month, day, hour, minutes=0, seconds=0, microseconds=0, tzinfo=pytz.UTC):
         return
+
+    def test_revoke_no_token(self):
+        resp = self.client.post(reverse('revoke-token'))
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(resp.data['detail'],
+                         'Authentication credentials were not provided.')
+
+    def test_revoke_valid_token(self):
+        user = User.objects.create_user(username='test_revoke_valid_token')
+        with patch('django.utils.timezone.now',
+                   mock.MagicMock(return_value=timezone.datetime(2020, 8, 17, 8, 1, 0, tzinfo=pytz.UTC))):
+            token = ExpiringToken.objects.create(user=user)
+
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        now = timezone.datetime(2020, 8, 17, 8, 1, 5, tzinfo=pytz.UTC)
+        with patch('django.utils.timezone.now', mock.MagicMock(return_value=now)):
+            resp = self.client.post(reverse('revoke-token'))
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        token.refresh_from_db()
+        self.assertEqual(token.expires, now)
+
+    def test_revoke_expired_token(self):
+        user = User.objects.create_user(username='test_revoke_expired_token')
+        with patch('django.utils.timezone.now',
+                   mock.MagicMock(return_value=timezone.datetime(2020, 8, 17, 8, 1, 0, tzinfo=pytz.UTC))):
+            token = ExpiringToken.objects.create(user=user)
+
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        with patch('django.utils.timezone.now',
+                   mock.MagicMock(return_value=timezone.datetime(2020, 8, 17, 8, 1, 15, tzinfo=pytz.UTC))):
+            resp = self.client.post(reverse('revoke-token'))
+
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(resp.data['detail'], 'The Token is expired')

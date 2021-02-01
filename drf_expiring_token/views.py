@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate
+from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK
 from rest_framework.views import APIView
@@ -32,3 +34,12 @@ class LoginView(APIView):
         return Response({
             'token': token.key
         }, status=HTTP_200_OK)
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated,]
+
+    def post(self, request):
+        token = ExpiringToken.objects.get(user=request.user)
+        token.expires = timezone.now()
+        token.save()
+        return Response(status=HTTP_200_OK)

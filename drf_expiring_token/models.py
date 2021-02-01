@@ -21,13 +21,16 @@ class ExpiringToken(models.Model):
         on_delete=models.CASCADE, verbose_name="User"
     )
     created = models.DateTimeField("Created", auto_now_add=True)
-    expires = models.DateTimeField("Expires in")
+    expires = models.DateTimeField(
+        "Expires in",
+        default=lambda: (timezone.now()
+                         + custom_settings.EXPIRING_TOKEN_DURATION)
+    )
 
     def save(self, *args, **kwargs):
         if not self.key:
             self.key = self.generate_key()
 
-        self.expires = timezone.now() + custom_settings.EXPIRING_TOKEN_DURATION
         return super(ExpiringToken, self).save(*args, **kwargs)
 
     def generate_key(self):
